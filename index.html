@@ -294,6 +294,7 @@
             padding: 10px;
             border-bottom: 1px solid var(--border-color);
             cursor: pointer;
+            position: relative;
         }
 
         .history-item:last-child {
@@ -377,6 +378,59 @@
             font-style: italic;
             text-align: center;
             padding: 20px 0;
+        }
+
+        /* History item actions */
+        .history-actions {
+            display: none;
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            gap: 5px;
+        }
+
+        .history-item:hover .history-actions {
+            display: flex;
+        }
+
+        .history-action-btn {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .history-action-btn:hover {
+            background-color: var(--primary-color);
+            color: #202124;
+        }
+
+        /* Translation styles */
+        .translation {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: rgba(138, 180, 248, 0.1);
+            border-radius: var(--border-radius);
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: none;
+        }
+
+        .translation.show {
+            display: block;
+        }
+
+        .translation-label {
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 5px;
         }
 
         @media (max-width: 600px) {
@@ -579,6 +633,28 @@
             }
 
             /**
+             * Translates text using Gemini API
+             * @param {string} text - Text to translate
+             * @param {string} sourceLang - Source language code
+             * @param {string} targetLang - Target language code
+             * @returns {Promise<string>} Translated text
+             */
+            async function translateText(text, sourceLang, targetLang) {
+                const sourceLangName = sourceLang === 'ja-JP' ? 'tiếng Nhật' : 'tiếng Việt';
+                const targetLangName = targetLang === 'ja-JP' ? 'tiếng Nhật' : 'tiếng Việt';
+                
+                const prompt = `Hãy dịch đoạn văn sau từ ${sourceLangName} sang ${targetLangName} một cách tự nhiên và chính xác:\n\n"${text}"\n\nChỉ trả về bản dịch, không thêm bất kỳ chú thích nào khác.`;
+                
+                try {
+                    const response = await fetchFromGemini(prompt);
+                    return response.candidates[0].content.parts[0].text;
+                } catch (error) {
+                    console.error('Translation error:', error);
+                    return 'Lỗi khi dịch: ' + error.message;
+                }
+            }
+
+            /**
              * Loads and displays saved history
              */
             function loadHistory() {
@@ -592,33 +668,82 @@
                 
                 elements.clearHistoryBtn.classList.remove('hidden');
                 
-                const historyHTML = history.map((item, index) => `
-                    <div class="history-item" data-index="${index}">
-                        <div class="history-text">${item.text.length > 50 ? item.text.substring(0, 50) + '...' : item.text}</div>
-                        <div class="history-meta">
-                            <span>${item.language === 'ja-JP' ? '日本語' : 'Tiếng Việt'}</span>
-                            <span>${formatDate(item.timestamp)}</span>
+                const historyHTML = history.map((item, index) => {
+                    const shortText = item.text.length > 50 ? item.text.substring(0, 50) + '...' : item.text;
+                    return `
+                        <div class="history-item" data-index="${index}">
+                            <div class="history-actions">
+                                <button class="history-action-btn translate-btn" title="Dịch">
+                                    <i class="fas fa-language"></i>
+                                </button>
+                                <button class="history-action-btn delete-btn" title="Xóa">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                            <div class="history-text">${shortText}</div>
+                            <div class="history-meta">
+                                <span>${item.language === 'ja-JP' ? '日本語' : 'Tiếng Việt'}</span>
+                                <span>${formatDate(item.timestamp)}</span>
+                            </div>
+                            <div class="translation" id="translation-${index}"></div>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
                 
                 elements.historyList.innerHTML = historyHTML;
                 
                 // Add click event to history items
                 document.querySelectorAll('.history-item').forEach(item => {
-                    item.addEventListener('click', () => {
-                        const index = parseInt(item.getAttribute('data-index'));
-                        const historyItem = history[index];
+                    const index = parseInt(item.getAttribute('data-index'));
+                    const historyItem = history[index];
+                    
+                    // Main item click - load to editor
+                    item.addEventListener('click', (e) => {
+                        if (!e.target.closest('.history-action-btn')) {
+                            elements.editableText.value = historyItem.text;
+                            elements.dialectSelect.value = historyItem.language;
+                            document.querySelector('.tab[data-tab="recorder"]').click();
+                            toggleActionButtons(true);
+                        }
+                    });
+                    
+                    // Translate button click
+                    const translateBtn = item.querySelector('.translate-btn');
+                    const translationDiv = item.querySelector('.translation');
+                    
+                    translateBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
                         
-                        // Set text and language
-                        elements.editableText.value = historyItem.text;
-                        elements.dialectSelect.value = historyItem.language;
+                        if (translationDiv.classList.contains('show')) {
+                            translationDiv.classList.remove('show');
+                            return;
+                        }
                         
-                        // Switch to recorder tab
-                        document.querySelector('.tab[data-tab="recorder"]').click();
+                        translationDiv.innerHTML = '<div class="translation-label">Đang dịch...</div>';
+                        translationDiv.classList.add('show');
                         
-                        // Enable action buttons
-                        toggleActionButtons(true);
+                        const targetLang = historyItem.language === 'ja-JP' ? 'vi-VN' : 'ja-JP';
+                        const translatedText = await translateText(historyItem.text, historyItem.language, targetLang);
+                        
+                        translationDiv.innerHTML = `
+                            <div class="translation-label">Dịch sang ${targetLang === 'ja-JP' ? 'tiếng Nhật' : 'tiếng Việt'}:</div>
+                            <div>${translatedText}</div>
+                        `;
+                    });
+                    
+                    // Delete button click
+                    const deleteBtn = item.querySelector('.delete-btn');
+                    deleteBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        if (confirm('Bạn có chắc chắn muốn xóa mục này?')) {
+                            const updatedHistory = history.filter((_, i) => i !== index);
+                            localStorage.setItem('speechHistory', JSON.stringify(updatedHistory));
+                            loadHistory();
+                            elements.status.innerHTML = '<i class="fas fa-check-circle"></i><span>Đã xóa mục lịch sử!</span>';
+                            setTimeout(() => {
+                                elements.status.innerHTML = '<i class="fas fa-info-circle"></i><span>Sẵn sàng</span>';
+                            }, 2000);
+                        }
                     });
                 });
             }
@@ -897,3 +1022,5 @@
             setupRecognition();
         });
     </script>
+</body>
+</html>

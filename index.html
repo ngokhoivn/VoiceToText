@@ -317,9 +317,6 @@
                 <button id="saveBtn" class="icon-button btn-secondary" title="Lưu vào lịch sử" disabled>
                     <i class="fas fa-save"></i>
                 </button>
-                <button id="clearBtn" class="icon-button btn-danger" title="Xóa tất cả">
-                    <i class="fas fa-trash"></i>
-                </button>
             </div>
         </div>
 
@@ -364,7 +361,6 @@
                 improveBtn: document.getElementById('improveBtn'),
                 suggestBtn: document.getElementById('suggestBtn'),
                 saveBtn: document.getElementById('saveBtn'),
-                clearBtn: document.getElementById('clearBtn'),
                 dialectSelect: document.getElementById('dialect'),
                 japaneseText: document.getElementById('japanese-text'),
                 editableText: document.getElementById('editableText'),
@@ -545,19 +541,6 @@
                 }
             }
 
-            // Clear all content
-            function clearAll() {
-                elements.editableText.value = '';
-                elements.japaneseText.textContent = '';
-                elements.suggestions.innerHTML = '';
-                elements.nextSuggestionList.innerHTML = '';
-                elements.resultBox.classList.add('hidden');
-                elements.correctionsBox.classList.add('hidden');
-                elements.nextSuggestions.classList.add('hidden');
-                toggleActionButtons(false);
-                elements.status.innerHTML = '<i class="fas fa-info-circle"></i><span>Sẵn sàng</span>';
-            }
-
             // Setup Web Speech API
             function setupRecognition() {
                 if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -660,7 +643,6 @@
                 }, 2000);
             });
 
-            elements.clearBtn.addEventListener('click', clearAll);
             setupRecognition();
         });
     </script>

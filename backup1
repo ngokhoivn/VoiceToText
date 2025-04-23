@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nhận diện giọng nói tiếng Nhật với Gemini AI</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #8ab4f8;
+            --primary-dark: #7ba3e6;
+            --secondary-color: #81c995;
+            --secondary-dark: #72b586;
+            --danger-color: #f28b82;
+            --danger-dark: #e37b72;
+            --warning-color: #fdd663;
+            --warning-dark: #f0c94d;
+            --bg-dark: #121212;
+            --bg-darker: #0a0a0a;
+            --bg-card: #1e1e1e;
+            --text-primary: #e1e1e1;
+            --text-secondary: #b0b0b0;
+            --border-color: #333333;
+            --border-radius: 8px;
+            --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            background-color: var(--bg-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            color: var(--text-primary);
+        }
+        
+        .dark-chat-container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background-color: var(--bg-card);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .chat-title {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+        
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+        
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        
+        .controls-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .icon-button {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border-radius: 50%;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-color: var(--bg-darker);
+            color: var(--text-primary);
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: #202124;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: #202124;
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--secondary-dark);
+        }
+        
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: #202124;
+        }
+        
+        .btn-danger:hover {
+            background-color: var(--danger-dark);
+        }
+        
+        .btn-warning {
+            background-color: var(--warning-color);
+            color: #202124;
+        }
+        
+        .btn-warning:hover {
+            background-color: var(--warning-dark);
+        }
+        
+        button:disabled {
+            background-color: var(--border-color);
+            cursor: not-allowed;
+            opacity: 0.5;
+            color: var(--text-secondary);
+        }
+        
+        select {
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            background-color: var(--bg-darker);
+            color: var(--text-primary);
+            min-width: 120px;
+        }
+        
+        .text-area {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            min-height: 150px;
+            resize: vertical;
+            font-family: inherit;
+            background-color: var(--bg-darker);
+            color: var(--text-primary);
+        }
+        
+        .text-area:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.2);
+        }
+        
+        .text-area::placeholder {
+            color: var(--text-secondary);
+        }
+        
+        .result-box {
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background-color: var(--bg-darker);
+            font-size: 16px;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+        
+        .status {
+            padding: 12px 15px;
+            background-color: var(--bg-darker);
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        .status i {
+            color: var(--primary-color);
+        }
+        
+        .loading {
+            display: none;
+            padding: 15px;
+            background-color: var(--bg-darker);
+            border-radius: var(--border-radius);
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .loading span {
+            color: var(--text-primary);
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .suggestions {
+            margin-top: 10px;
+            color: var(--text-primary);
+        }
+        
+        .suggestions-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            color: var(--warning-color);
+        }
+        
+        .suggestions ul {
+            padding-left: 20px;
+            margin-top: 8px;
+        }
+        
+        .suggestions li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        
+        .suggestions li:hover {
+            color: var(--primary-color);
+        }
+        
+        @media (max-width: 600px) {
+            .dark-chat-container {
+                border-radius: 0;
+                max-width: Chrome;
+                height: 100vh;
+                padding: 15px;
+            }
+            
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .controls-group {
+                justify-content: space-between;
+            }
+            
+            .text-area {
+                min-height: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dark-chat-container">
+        <div class="chat-header">
+            <div class="chat-title">
+                <i class="fas fa-language"></i> Nhận diện giọng nói tiếng Nhật
+            </div>
+            <button class="theme-toggle" id="themeToggle" title="Chuyển chế độ sáng">
+                <i class="fas fa-sun"></i>
+            </button>
+        </div>
+        
+        <div class="toolbar">
+            <div class="controls-group">
+                <select id="dialect">
+                    <option value="ja-JP" selected>日本語</option>
+                    <option value="vi-VN">Tiếng Việt</option>
+                </select>
+                <button id="startBtn" class="icon-button btn-primary" title="Bắt đầu ghi âm">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                <button id="stopBtn" class="icon-button btn-danger" title="Dừng ghi âm" disabled>
+                    <i class="fas fa-stop"></i>
+                </button>
+            </div>
+            
+            <div class="controls-group">
+                <button id="improveBtn" class="icon-button btn-primary" title="Cải thiện với AI" disabled>
+                    <i class="fas fa-magic"></i>
+                </button>
+                <button id="suggestBtn" class="icon-button btn-warning" title="Gợi ý câu tiếp theo" disabled>
+                    <i class="fas fa-comment-dots"></i>
+                </button>
+                <button id="saveBtn" class="icon-button btn-secondary" title="Lưu vào lịch sử" disabled>
+                    <i class="fas fa-save"></i>
+                </button>
+                <button id="clearBtn" class="icon-button btn-danger" title="Xóa tất cả">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="status" id="status">
+            <i class="fas fa-info-circle"></i>
+            <span>Nhấn nút microphone và nói...</span>
+        </div>
+        
+        <textarea id="editableText" class="text-area" placeholder="Kết quả nhận dạng sẽ xuất hiện ở đây..."></textarea>
+        
+        <div id="result" class="result-box" style="display: none;">
+            <div class="japanese" id="japanese-text"></div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <span>Đang xử lý với Gemini...</span>
+        </div>
+        
+        <div id="correctedResult" class="result-box" style="display: none;">
+            <div class="japanese" id="corrected-text"></div>
+        </div>
+        
+        <div id="corrections" class="suggestions" style="display: none;">
+            <div class="suggestions-title">
+                <i class="fas fa-lightbulb"></i>
+                <span>Gợi ý cải thiện</span>
+            </div>
+            <div id="suggestions"></div>
+        </div>
+        
+        <div id="nextSuggestions" class="suggestions" style="display: none;">
+            <div class="suggestions-title">
+                <i class="fas fa-comment-dots"></i>
+                <span>Gợi ý câu tiếp theo</span>
+            </div>
+            <div id="nextSuggestionList"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Các phần tử DOM
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const improveBtn = document.getElementById('improveBtn');
+            const suggestBtn = document.getElementById('suggestBtn');
+            const saveBtn = document.getElementById('saveBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const themeToggle = document.getElementById('themeToggle');
+            const dialectSelect = document.getElementById('dialect');
+            const japaneseText = document.getElementById('japanese-text');
+            const editableText = document.getElementById('editableText');
+            const correctedText = document.getElementById('corrected-text');
+            const status = document.getElementById('status');
+            const suggestions = document.getElementById('suggestions');
+            const loading = document.getElementById('loading');
+            const resultBox = document.getElementById('result');
+            const correctedResult = document.getElementById('correctedResult');
+            const correctionsBox = document.getElementById('corrections');
+            const nextSuggestions = document.getElementById('nextSuggestions');
+            const nextSuggestionList = document.getElementById('nextSuggestionList');
+            
+            // API Key (thay bằng key thực của bạn trong môi trường sản xuất)
+            const GEMINI_API_KEY = "AIzaSyDjgTk4uZQUCpFH5Zt8ZgP2CW-jhmkLv8o";
+            
+            // Khởi tạo các biến toàn cục
+            let recognition = null;
+            let isRecording = false;
+            let isDarkMode = true;
+            
+            // Hàm gọi Gemini API
+            async function fetchFromGemini(apiKey, promptText) {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: promptText }] }]
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || 'API request failed');
+                }
+                
+                return await response.json();
+            }
+            
+            // Hàm tạo prompt gợi ý câu tiếp theo
+            function createSuggestionPrompt(text, language) {
+                return `Based on the following text, suggest 3 short, natural sentences that the person might want to say next in this conversation.
+                
+                Text: "${text}"
+                
+                Keep the suggestions in ${language === 'ja-JP' ? 'Japanese' : 'Vietnamese'}.
+                Format each suggestion as a JSON object in an array:
+                [
+                    {"suggestion": "gợi ý 1"},
+                    {"suggestion": "gợi ý 2"},
+                    {"suggestion": "gợi ý 3"}
+                ]`;
+            }
+            
+            // Hàm trích xuất gợi ý
+            function extractSuggestions(responseData) {
+                try {
+                    const responseText = responseData.candidates[0].content.parts[0].text;
+                    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+                    if (jsonMatch) {
+                        const suggestions = JSON.parse(jsonMatch[0]);
+                        return suggestions.map(item => item.suggestion);
+                    }
+                    return [];
+                } catch (error) {
+                    console.error('Error extracting suggestions:', error);
+                    return [];
+                }
+            }
+            
+            // Hàm hiển thị gợi ý
+            function displaySuggestions(suggestions) {
+                nextSuggestionList.innerHTML = '';
+                
+                if (suggestions.length === 0) {
+                    nextSuggestionList.innerHTML = '<p>Không có gợi ý nào.</p>';
+                    return;
+                }
+                
+                const ul = document.createElement('ul');
+                suggestions.forEach(suggestion => {
+                    const li = document.createElement('li');
+                    li.textContent = suggestion;
+                    li.addEventListener('click', () => {
+                        editableText.value = suggestion;
+                        improveBtn.disabled = false;
+                        saveBtn.disabled = false;
+                        suggestBtn.disabled = false;
+                    });
+                    ul.appendChild(li);
+                });
+                nextSuggestionList.appendChild(ul);
+                nextSuggestions.style.display = 'block';
+            }
+            
+            // Hàm tạo gợi ý câu tiếp theo
+            async function generateNextSuggestions() {
+                const text = correctedText.textContent.trim() || editableText.value.trim();
+                if (!text) {
+                    status.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>Không có văn bản để tạo gợi ý</span>';
+                    return;
+                }
+                
+                loading.style.display = 'flex';
+                suggestBtn.disabled = true;
+                
+                try {
+                    const prompt = createSuggestionPrompt(text, dialectSelect.value);
+                    const response = await fetchFromGemini(GEMINI_API_KEY, prompt);
+                    const suggestions = extractSuggestions(response);
+                    displaySuggestions(suggestions);
+                } catch (error) {
+                    console.error('Error generating suggestions:', error);
+                    status.innerHTML = `<i class="fas fa-exclamation-triangle"></i><span>Lỗi: ${error.message}</span>`;
+                } finally {
+                    loading.style.display = 'none';
+                    suggestBtn.disabled = false;
+                }
+            }
+            
+            // Thiết lập Web Speech API
+            function setupRecognition() {
+                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                    status.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Trình duyệt không hỗ trợ nhận diện giọng nói. Hãy dùng Chrome.</span>';
+                    startBtn.disabled = true;
+                    return;
+                }
+                
+                recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                recognition.lang = dialectSelect.value;
+                recognition.interimResults = true;
+                recognition.continuous = true;
+                recognition.maxAlternatives = 1;
+                
+                recognition.onresult = function(event) {
+                    let interimTranscript = '';
+                    let finalTranscript = '';
+                    
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript;
+                            if (editableText.value) {
+                                editableText.value += ' ' + transcript;
+                            } else {
+                                editableText.value = transcript;
+                            }
+                            improveBtn.disabled = false;
+                            saveBtn.disabled = false;
+                            suggestBtn.disabled = false;
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+                    
+                    if (finalTranscript || interimTranscript) {
+                        japaneseText.textContent = finalTranscript || interimTranscript;
+                        resultBox.style.display = 'block';
+                    }
+                };
+                
+                recognition.onstart = function() {
+                    isRecording = true;
+                    status.innerHTML = '<i class="fas fa-microphone"></i><span>Đang nghe... Nói điều gì đó</span>';
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                };
+                
+                recognition.onend = function() {
+                    isRecording = false;
+                    status.innerHTML = '<i class="fas fa-check-circle"></i><span>Đã dừng ghi âm</span>';
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
+                    if (editableText.value.trim()) {
+                        improveBtn.disabled = false;
+                        saveBtn.disabled = false;
+                        suggestBtn.disabled = false;
+                    }
+                };
+                
+                recognition.onerror = function(event) {
+                    isRecording = false;
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
+                    let errorMessage = 'Lỗi không xác định';
+                    switch(event.error) {
+                        case 'no-speech':
+                            errorMessage = 'Không phát hiện giọng nói';
+                            break;
+                        case 'audio-capture':
+                            errorMessage = 'Không thể truy cập microphone';
+                            break;
+                        case 'not-allowed':
+                            errorMessage = 'Microphone bị chặn';
+                            break;
+                        default:
+                            errorMessage = 'Lỗi: ' + event.error;
+                    }
+                    status.innerHTML = `<i class="fas fa-exclamation-circle"></i><span>${errorMessage}</span>`;
+                };
+            }
+            
+            // Hàm cải thiện với Gemini
+            async function improveWithGemini() {
+                const textToImprove = editableText.value.trim();
+                if (!textToImprove) {
+                    status.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>Không có văn bản để cải thiện</span>';
+                    return;
+                }
+                
+                loading.style.display = 'flex';
+                improveBtn.disabled = true;
+                correctedResult.style.display = 'none';
+                correctionsBox.style.display = 'none';
+                
+                try {
+                    const promptText = `
+                    Bạn là chuyên gia ngôn ngữ. Hãy phân tích và cải thiện đoạn văn sau dựa trên ngôn ngữ được chọn (${dialectSelect.value === 'ja-JP' ? 'tiếng Nhật' : 'tiếng Việt'}):
+                    
+                    1. Sửa lỗi chính tả, ngữ pháp
+                    2. Trả về phiên bản đã sửa
+                    3. Đề xuất 2-3 cách diễn đạt tự nhiên hơn
+                    
+                    Đoạn văn: "${textToImprove}"
+                    
+                    Trả lời theo định dạng JSON:
+                    {
+                      "corrected_text": "văn bản đã sửa",
+                      "suggestions": ["gợi ý 1", "gợi ý 2", "gợi ý 3"]
+                    }
+                    `;
+                    
+                    const response = await fetchFromGemini(GEMINI_API_KEY, promptText);
+                    const responseText = response.candidates[0].content.parts[0].text;
+                    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+                    
+                    if (jsonMatch) {
+                        const jsonResponse = JSON.parse(jsonMatch[0]);
+                        
+                        correctedText.textContent = jsonResponse.corrected_text || textToImprove;
+                        correctedResult.style.display = 'block';
+                        
+                        suggestions.innerHTML = '';
+                        if (jsonResponse.suggestions?.length > 0) {
+                            const ul = document.createElement('ul');
+                            jsonResponse.suggestions.forEach(suggestion => {
+                                const li = document.createElement('li');
+                                li.textContent = suggestion;
+                                li.addEventListener('click', () => {
+                                    editableText.value = suggestion;
+                                    improveBtn.disabled = false;
+                                    saveBtn.disabled = false;
+                                    suggestBtn.disabled = false;
+                                });
+                                ul.appendChild(li);
+                            });
+                            suggestions.appendChild(ul);
+                            correctionsBox.style.display = 'block';
+                        }
+                        
+                        suggestBtn.disabled = false;
+                    } else {
+                        throw new Error('Không thể phân tích phản hồi từ Gemini');
+                    }
+                } catch (error) {
+                    console.error('Lỗi:', error);
+                    status.innerHTML = `<i class="fas fa-exclamation-triangle"></i><span>Lỗi: ${error.message}</span>`;
+                    correctedText.textContent = 'Đã xảy ra lỗi khi xử lý';
+                    correctedResult.style.display = 'block';
+                } finally {
+                    loading.style.display = 'none';
+                    improveBtn.disabled = false;
+                }
+            }
+            
+            // Xóa tất cả nội dung
+            function clearAll() {
+                editableText.value = '';
+                japaneseText.textContent = '';
+                correctedText.textContent = '';
+                suggestions.innerHTML = '';
+                nextSuggestionList.innerHTML = '';
+                resultBox.style.display = 'none';
+                correctedResult.style.display = 'none';
+                correctionsBox.style.display = 'none';
+                nextSuggestions.style.display = 'none';
+                improveBtn.disabled = true;
+                saveBtn.disabled = true;
+                suggestBtn.disabled = true;
+                status.innerHTML = '<i class="fas fa-info-circle"></i><span>Sẵn sàng</span>';
+            }
+            
+            // Chuyển đổi chế độ sáng/tối
+            function toggleTheme() {
+                isDarkMode = !isDarkMode;
+                document.body.style.backgroundColor = isDarkMode ? 'var(--bg-dark)' : '#f5f5f5';
+                document.body.style.color = isDarkMode ? 'var(--text-primary)' : '#333333';
+                themeToggle.innerHTML = isDarkMode ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+                themeToggle.title = isDarkMode ? 'Chuyển chế độ sáng' : 'Chuyển chế độ tối';
+            }
+            
+            // Sự kiện thay đổi trong textarea
+            editableText.addEventListener('input', function() {
+                if (this.value.trim()) {
+                    improveBtn.disabled = false;
+                    saveBtn.disabled = false;
+                    suggestBtn.disabled = false;
+                } else {
+                    improveBtn.disabled = true;
+                    saveBtn.disabled = true;
+                    suggestBtn.disabled = true;
+                }
+            });
+            
+            // Sự kiện thay đổi ngôn ngữ
+            dialectSelect.addEventListener('change', function() {
+                if (recognition) {
+                    const wasRecording = isRecording;
+                    if (wasRecording) {
+                        recognition.stop();
+                    }
+                    recognition.lang = dialectSelect.value;
+                    if (wasRecording) {
+                        setTimeout(() => recognition.start(), 100);
+                    }
+                    status.innerHTML = `<i class="fas fa-info-circle"></i><span>Đã chuyển sang ${dialectSelect.options[dialectSelect.selectedIndex].text}</span>`;
+                }
+            });
+            
+            // Sự kiện các nút
+            startBtn.addEventListener('click', function() {
+                if (!recognition) {
+                    setupRecognition();
+                }
+                recognition.start();
+            });
+            
+            stopBtn.addEventListener('click', function() {
+                if (recognition && isRecording) {
+                    recognition.stop();
+                }
+            });
+            
+            improveBtn.addEventListener('click', improveWithGemini);
+            suggestBtn.addEventListener('click', generateNextSuggestions);
+            
+            saveBtn.addEventListener('click', function() {
+                const textToSave = editableText.value.trim();
+                if (!textToSave) return;
+                status.innerHTML = '<i class="fas fa-check-circle"></i><span>Đã lưu!</span>';
+                setTimeout(() => {
+                    status.innerHTML = '<i class="fas fa-info-circle"></i><span>Sẵn sàng</span>';
+                }, 2000);
+            });
+            
+            clearBtn.addEventListener('click', clearAll);
+            themeToggle.addEventListener('click', toggleTheme);
+            
+            // Khởi tạo ban đầu
+            setupRecognition();
+        });
+    </script>
+</body>
+</html>

@@ -68,14 +68,6 @@
             color: var(--primary-color);
         }
         
-        .theme-toggle {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            cursor: pointer;
-            font-size: 1.2rem;
-        }
-        
         .toolbar {
             display: flex;
             gap: 10px;
@@ -294,9 +286,6 @@
             <div class="chat-title">
                 <i class="fas fa-language"></i> Nhận diện giọng nói tiếng Nhật
             </div>
-            <button class="theme-toggle" id="themeToggle" title="Chuyển chế độ sáng">
-                <i class="fas fa-sun"></i>
-            </button>
         </div>
         
         <div class="toolbar">
@@ -305,11 +294,8 @@
                     <option value="ja-JP" selected>日本語</option>
                     <option value="vi-VN">Tiếng Việt</option>
                 </select>
-                <button id="startBtn" class="icon-button btn-primary" title="Bắt đầu ghi âm">
+                <button id="micBtn" class="icon-button btn-primary" title="Bắt đầu ghi âm">
                     <i class="fas fa-microphone"></i>
-                </button>
-                <button id="stopBtn" class="icon-button btn-danger" title="Dừng ghi âm" disabled>
-                    <i class="fas fa-stop"></i>
                 </button>
             </div>
             
@@ -369,13 +355,11 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Các phần tử DOM
-            const startBtn = document.getElementById('startBtn');
-            const stopBtn = document.getElementById('stopBtn');
+            const micBtn = document.getElementById('micBtn');
             const improveBtn = document.getElementById('improveBtn');
             const suggestBtn = document.getElementById('suggestBtn');
             const saveBtn = document.getElementById('saveBtn');
             const clearBtn = document.getElementById('clearBtn');
-            const themeToggle = document.getElementById('themeToggle');
             const dialectSelect = document.getElementById('dialect');
             const japaneseText = document.getElementById('japanese-text');
             const editableText = document.getElementById('editableText');
@@ -395,7 +379,6 @@
             // Khởi tạo các biến toàn cục
             let recognition = null;
             let isRecording = false;
-            let isDarkMode = true;
             
             // Hàm gọi Gemini API
             async function fetchFromGemini(apiKey, promptText) {
@@ -502,7 +485,7 @@
             function setupRecognition() {
                 if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
                     status.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Trình duyệt không hỗ trợ nhận diện giọng nói. Hãy dùng Chrome.</span>';
-                    startBtn.disabled = true;
+                    micBtn.disabled = true;
                     return;
                 }
                 
@@ -516,25 +499,36 @@
                     let interimTranscript = '';
                     let finalTranscript = '';
                     
+                    // Xử lý kết quả nhận dạng
                     for (let i = event.resultIndex; i < event.results.length; i++) {
                         const transcript = event.results[i][0].transcript;
                         if (event.results[i].isFinal) {
                             finalTranscript += transcript;
-                            if (editableText.value) {
-                                editableText.value += ' ' + transcript;
-                            } else {
-                                editableText.value = transcript;
-                            }
-                            improveBtn.disabled = false;
-                            saveBtn.disabled = false;
-                            suggestBtn.disabled = false;
                         } else {
                             interimTranscript += transcript;
                         }
                     }
                     
-                    if (finalTranscript || interimTranscript) {
-                        japaneseText.textContent = finalTranscript || interimTranscript;
+                    // Xử lý kết quả cuối cùng
+                    if (finalTranscript) {
+                        // Thêm vào nội dung hiện có, đảm bảo không có dấu cách dư thừa
+                        const currentText = editableText.value.trim();
+                        editableText.value = currentText 
+                            ? currentText + ' ' + finalTranscript.trim() 
+                            : finalTranscript.trim();
+                            
+                        // Xóa nội dung tạm thời
+                        japaneseText.textContent = '';
+                        resultBox.style.display = 'none';
+                        
+                        // Kích hoạt các nút chức năng
+                        improveBtn.disabled = false;
+                        saveBtn.disabled = false;
+                        suggestBtn.disabled = false;
+                    } 
+                    // Hiển thị kết quả tạm thời
+                    else if (interimTranscript) {
+                        japaneseText.textContent = interimTranscript;
                         resultBox.style.display = 'block';
                     }
                 };
@@ -542,15 +536,19 @@
                 recognition.onstart = function() {
                     isRecording = true;
                     status.innerHTML = '<i class="fas fa-microphone"></i><span>Đang nghe... Nói điều gì đó</span>';
-                    startBtn.disabled = true;
-                    stopBtn.disabled = false;
+                    micBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                    micBtn.title = 'Dừng ghi âm';
+                    micBtn.classList.remove('btn-primary');
+                    micBtn.classList.add('btn-danger');
                 };
                 
                 recognition.onend = function() {
                     isRecording = false;
                     status.innerHTML = '<i class="fas fa-check-circle"></i><span>Đã dừng ghi âm</span>';
-                    startBtn.disabled = false;
-                    stopBtn.disabled = true;
+                    micBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                    micBtn.title = 'Bắt đầu ghi âm';
+                    micBtn.classList.remove('btn-danger');
+                    micBtn.classList.add('btn-primary');
                     if (editableText.value.trim()) {
                         improveBtn.disabled = false;
                         saveBtn.disabled = false;
@@ -560,8 +558,10 @@
                 
                 recognition.onerror = function(event) {
                     isRecording = false;
-                    startBtn.disabled = false;
-                    stopBtn.disabled = true;
+                    micBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                    micBtn.title = 'Bắt đầu ghi âm';
+                    micBtn.classList.remove('btn-danger');
+                    micBtn.classList.add('btn-primary');
                     let errorMessage = 'Lỗi không xác định';
                     switch(event.error) {
                         case 'no-speech':
@@ -670,15 +670,6 @@
                 status.innerHTML = '<i class="fas fa-info-circle"></i><span>Sẵn sàng</span>';
             }
             
-            // Chuyển đổi chế độ sáng/tối
-            function toggleTheme() {
-                isDarkMode = !isDarkMode;
-                document.body.style.backgroundColor = isDarkMode ? 'var(--bg-dark)' : '#f5f5f5';
-                document.body.style.color = isDarkMode ? 'var(--text-primary)' : '#333333';
-                themeToggle.innerHTML = isDarkMode ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
-                themeToggle.title = isDarkMode ? 'Chuyển chế độ sáng' : 'Chuyển chế độ tối';
-            }
-            
             // Sự kiện thay đổi trong textarea
             editableText.addEventListener('input', function() {
                 if (this.value.trim()) {
@@ -707,16 +698,15 @@
                 }
             });
             
-            // Sự kiện các nút
-            startBtn.addEventListener('click', function() {
+            // Sự kiện bật/tắt ghi âm
+            micBtn.addEventListener('click', function() {
                 if (!recognition) {
                     setupRecognition();
                 }
-                recognition.start();
-            });
-            
-            stopBtn.addEventListener('click', function() {
-                if (recognition && isRecording) {
+                
+                if (!isRecording) {
+                    recognition.start();
+                } else {
                     recognition.stop();
                 }
             });
@@ -727,6 +717,17 @@
             saveBtn.addEventListener('click', function() {
                 const textToSave = editableText.value.trim();
                 if (!textToSave) return;
+                
+                // Đây là nơi bạn có thể thêm chức năng lưu vào lịch sử hoặc cơ sở dữ liệu
+                // Ví dụ: lưu vào localStorage
+                const history = JSON.parse(localStorage.getItem('speechHistory') || '[]');
+                history.push({
+                    text: textToSave,
+                    language: dialectSelect.value,
+                    timestamp: new Date().toISOString()
+                });
+                localStorage.setItem('speechHistory', JSON.stringify(history));
+                
                 status.innerHTML = '<i class="fas fa-check-circle"></i><span>Đã lưu!</span>';
                 setTimeout(() => {
                     status.innerHTML = '<i class="fas fa-info-circle"></i><span>Sẵn sàng</span>';
@@ -734,7 +735,6 @@
             });
             
             clearBtn.addEventListener('click', clearAll);
-            themeToggle.addEventListener('click', toggleTheme);
             
             // Khởi tạo ban đầu
             setupRecognition();

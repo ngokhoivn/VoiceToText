@@ -260,7 +260,7 @@
         @media (max-width: 600px) {
             .dark-chat-container {
                 border-radius: 0;
-                max-width: Chrome;
+                max-width: 100%;
                 height: 100vh;
                 padding: 15px;
             }
@@ -331,10 +331,6 @@
             <span>Đang xử lý với Gemini...</span>
         </div>
         
-        <div id="correctedResult" class="result-box" style="display: none;">
-            <div class="japanese" id="corrected-text"></div>
-        </div>
-        
         <div id="corrections" class="suggestions" style="display: none;">
             <div class="suggestions-title">
                 <i class="fas fa-lightbulb"></i>
@@ -363,12 +359,10 @@
             const dialectSelect = document.getElementById('dialect');
             const japaneseText = document.getElementById('japanese-text');
             const editableText = document.getElementById('editableText');
-            const correctedText = document.getElementById('corrected-text');
             const status = document.getElementById('status');
             const suggestions = document.getElementById('suggestions');
             const loading = document.getElementById('loading');
             const resultBox = document.getElementById('result');
-            const correctedResult = document.getElementById('correctedResult');
             const correctionsBox = document.getElementById('corrections');
             const nextSuggestions = document.getElementById('nextSuggestions');
             const nextSuggestionList = document.getElementById('nextSuggestionList');
@@ -379,6 +373,7 @@
             // Khởi tạo các biến toàn cục
             let recognition = null;
             let isRecording = false;
+            let originalText = ''; // Lưu bản gốc trước khi cải thiện
             
             // Hàm gọi Gemini API
             async function fetchFromGemini(apiKey, promptText) {
@@ -458,7 +453,7 @@
             
             // Hàm tạo gợi ý câu tiếp theo
             async function generateNextSuggestions() {
-                const text = correctedText.textContent.trim() || editableText.value.trim();
+                const text = editableText.value.trim();
                 if (!text) {
                     status.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>Không có văn bản để tạo gợi ý</span>';
                     return;
@@ -590,10 +585,11 @@
                 
                 loading.style.display = 'flex';
                 improveBtn.disabled = true;
-                correctedResult.style.display = 'none';
                 correctionsBox.style.display = 'none';
                 
                 try {
+                    originalText = textToImprove; // Lưu bản gốc trước khi sửa
+                    
                     const promptText = `
                     Bạn là chuyên gia ngôn ngữ. Hãy phân tích và cải thiện đoạn văn sau dựa trên ngôn ngữ được chọn (${dialectSelect.value === 'ja-JP' ? 'tiếng Nhật' : 'tiếng Việt'}):
                     
@@ -617,8 +613,8 @@
                     if (jsonMatch) {
                         const jsonResponse = JSON.parse(jsonMatch[0]);
                         
-                        correctedText.textContent = jsonResponse.corrected_text || textToImprove;
-                        correctedResult.style.display = 'block';
+                        // Cập nhật trực tiếp vào textarea chính
+                        editableText.value = jsonResponse.corrected_text || textToImprove;
                         
                         suggestions.innerHTML = '';
                         if (jsonResponse.suggestions?.length > 0) {
@@ -645,8 +641,7 @@
                 } catch (error) {
                     console.error('Lỗi:', error);
                     status.innerHTML = `<i class="fas fa-exclamation-triangle"></i><span>Lỗi: ${error.message}</span>`;
-                    correctedText.textContent = 'Đã xảy ra lỗi khi xử lý';
-                    correctedResult.style.display = 'block';
+                    editableText.value = 'Đã xảy ra lỗi khi xử lý';
                 } finally {
                     loading.style.display = 'none';
                     improveBtn.disabled = false;
@@ -657,11 +652,9 @@
             function clearAll() {
                 editableText.value = '';
                 japaneseText.textContent = '';
-                correctedText.textContent = '';
                 suggestions.innerHTML = '';
                 nextSuggestionList.innerHTML = '';
                 resultBox.style.display = 'none';
-                correctedResult.style.display = 'none';
                 correctionsBox.style.display = 'none';
                 nextSuggestions.style.display = 'none';
                 improveBtn.disabled = true;
@@ -717,10 +710,7 @@
             saveBtn.addEventListener('click', function() {
                 const textToSave = editableText.value.trim();
                 if (!textToSave) return;
-                
-                // Đây là nơi bạn có thể thêm chức năng lưu vào lịch sử hoặc cơ sở dữ liệu
-                // Ví dụ: lưu vào localStorage
-                const history = JSON.parse(localStorage.getItem('speechHistory') || '[]');
+               const history = JSON.parse(localStorage.getItem('speechHistory') || '[]');
                 history.push({
                     text: textToSave,
                     language: dialectSelect.value,
@@ -735,8 +725,6 @@
             });
             
             clearBtn.addEventListener('click', clearAll);
-            
-            // Khởi tạo ban đầu
             setupRecognition();
         });
     </script>
